@@ -17,8 +17,6 @@ class MockChatCompletion:
     def __init__(self, content):
         self.choices = [MockChoice(content)]
 
-load_dotenv()
-
 class GroqKeyRotator:
     _instance = None
 
@@ -29,158 +27,64 @@ class GroqKeyRotator:
         return cls._instance
 
     def _init_rotator(self):
-        self.keys = []
-        # Load primary key
-        primary = os.environ.get("GROQ_API_KEY", "")
-        if primary.strip():
-            self.keys.append(primary.strip())
-        
-        # Load extra keys
-        for i in range(1, 10):
-            extra = os.environ.get(f"GROQ_API_KEY_{i}", "")
-            if extra.strip():
-                self.keys.append(extra.strip())
-        
-        # Ensure we have at least one key
-        if not self.keys:
-            print("WARNING: No Groq API keys loaded from environment!")
-        
-        self.current_idx = 0
-        self.demo_mode = os.environ.get("DEMO_MODE", "").lower() == "true"
+        # We don't need key rotation or Ollama fallback since we use cascadeflow
+        pass
 
-        if self.demo_mode:
-            self.ollama_active = False
-            print("[DEMO MODE] Groq cloud only. Ollama bypassed for maximum speed.")
-        else:
-            self.ollama_active = True
-            self.last_ollama_fail = 0
-            # Preload Ollama model to prevent cold start latency
+    def execute_completion(self, messages, model="llama-3.3-70b-versatile", response_format=None, **kwargs):
+        # We will use cascadeflow to route between a cheap model (qwen) and a smart model (llama)
+        import asyncio
+        from cascadeflow import CascadeAgent, ModelConfig
+        import os
+        import re
+
+        # Define the Drafter (Fast/Cheap) and Verifier (Smart/Expensive)
+        # Using Groq models natively
+        agent = CascadeAgent(models=[
+            ModelConfig(name="llama-3.1-8b-instant", provider="groq", cost=0.0001), # Drafter
+            ModelConfig(name="llama-3.3-70b-versatile", provider="groq", cost=0.0005) # Verifier
+        ])
+        
+        # If response_format is JSON, we ensure the prompt explicitly asks for it
+        if response_format and response_format.get("type") == "json_object":
+            if messages and messages[0]["role"] == "system":
+                messages[0]["content"] += " Output valid JSON only, no markdown formatting."
+
+        # Run the cascade agent synchronously
+        try:
+            # We must run it in a new event loop if one is already running
             try:
-                print("Preloading Ollama model (gemma3:4b)...")
-                requests.post("http://127.0.0.1:11434/api/generate", json={"model": "gemma3:4b", "keep_alive": -1}, timeout=3.0)
-            except Exception as e:
-                print(f"Ollama preloading skipped/failed: {e}")
-
-    def _call_ollama(self, messages, response_format=None):
-        url = "http://127.0.0.1:11434/v1/chat/completions"
-        payload = {
-            "model": "gemma3:4b",
-            "messages": messages,
-            "temperature": 0.2
-        }
-        if response_format:
-            payload["response_format"] = response_format
-
-        start_time = time.time()
-        print(f"[Ollama Request] Sending request to gemma3:4b model...")
-        response = requests.post(url, json=payload, timeout=(5.0, 120.0))
-        latency = time.time() - start_time
-        print(f"[Ollama Response] gemma3:4b responded in {latency:.3f}s. Status: {response.status_code}")
-
-        if response.status_code == 200:
-            res_data = response.json()
-            content = res_data["choices"][0]["message"]["content"]
+                loop = asyncio.get_running_loop()
+                # If there's a running loop, we can't use asyncio.run
+                import threading
+                result_container = []
+                def run_in_thread():
+                    result_container.append(asyncio.run(agent.run(messages=messages)))
+                t = threading.Thread(target=run_in_thread)
+                t.start()
+                t.join()
+                res = result_container[0]
+            except RuntimeError:
+                res = asyncio.run(agent.run(messages=messages))
+                
+            content = res.content
             
-            # Sanitize markdown code block formatting in JSON outputs if present
+            # Print cost and savings to prove it's working
+            print(f"[\033[92mCascadeFlow\033[0m] Model Used: {res.model_used}")
+            print(f"[\033[92mCascadeFlow\033[0m] Cost Saved: ${res.cost_saved:.6f}")
+
+            # Strip markdown if JSON was requested
             if response_format and response_format.get("type") == "json_object":
                 content_clean = content.strip()
                 if content_clean.startswith("```"):
                     match = re.search(r'```(?:json)?\s*(.*?)\s*```', content_clean, re.DOTALL | re.IGNORECASE)
                     if match:
                         content = match.group(1).strip()
-                
-                # Check for empty response or invalid JSON structures
-                try:
-                    import json
-                    parsed = json.loads(content)
-                    if not parsed or (isinstance(parsed, dict) and not parsed):
-                        raise Exception("Local Ollama returned an empty JSON dictionary.")
-                except Exception as je:
-                    raise Exception(f"Local Ollama returned malformed or empty JSON: {je}. Raw response was: {content}")
-            
+                        
             return MockChatCompletion(content)
-        else:
-            raise Exception(f"Ollama returned status code {response.status_code}")
-
-    def execute_completion(self, messages, model="llama-3.3-70b-versatile", response_format=None, **kwargs):
-        is_groq_disabled = os.environ.get("DISABLE_GROQ_FALLBACK", "").lower() == "true"
-
-        if is_groq_disabled:
-            # Strict local Ollama-only path (no fallback to Groq)
-            try:
-                # Fast ping check to verify Ollama is active (timeout 1.0s)
-                ping_resp = requests.get("http://127.0.0.1:11434/", timeout=1.0)
-                if ping_resp.status_code != 200 or "ollama is running" not in ping_resp.text.lower():
-                    raise Exception("Ollama signature not found in response text")
-            except Exception as e:
-                raise Exception(f"Ollama is offline/unreachable and Groq fallback is disabled: {e}")
-
-            try:
-                return self._call_ollama(messages, response_format)
-            except Exception as e:
-                raise Exception(f"Ollama inference failed: {e}")
-
-        # Re-enable Ollama check if 60 seconds have passed since last failure
-        if not self.demo_mode and not self.ollama_active:
-            if time.time() - self.last_ollama_fail > 60:
-                self.ollama_active = True
-
-        # Fast ping check to verify Ollama is active and responding (timeout 1.0s)
-        if self.ollama_active:
-            try:
-                ping_resp = requests.get("http://127.0.0.1:11434/", timeout=1.0)
-                if ping_resp.status_code != 200 or "ollama is running" not in ping_resp.text.lower():
-                    raise Exception("Ollama signature not found in response text")
-            except Exception as e:
-                print(f"Ollama local ping failed: {e}. Disabling local inference for 60 seconds.")
-                self.ollama_active = False
-                self.last_ollama_fail = time.time()
-
-        # 1. Attempt local Ollama inference first (if online)
-        if self.ollama_active:
-            try:
-                return self._call_ollama(messages, response_format)
-            except Exception as e:
-                print(f"Ollama inference error: {e}")
-                print("Falling back to Groq...")
-
-        # 2. Fallback: Groq key rotator
-        # Hot-fix override to bypass 70B Tokens Per Day (TPD) rate limit exhaustion on Groq
-        if model == "llama-3.3-70b-versatile":
-            model = "llama-3.1-8b-instant"
-
-        if not self.keys:
-            raise Exception("No Groq API keys configured in .env!")
-
-        attempts = len(self.keys) * 4
-        last_error = None
-
-        for attempt in range(attempts):
-            key = self.keys[self.current_idx % len(self.keys)]
-            client = Groq(api_key=key)
-            try:
-                api_args = {
-                    "messages": messages,
-                    "model": model,
-                    **kwargs
-                }
-                if response_format:
-                    api_args["response_format"] = response_format
-
-                chat_completion = client.chat.completions.create(**api_args)
-                return chat_completion
-            except Exception as e:
-                err_msg = str(e).lower()
-                last_error = e
-                if "429" in err_msg or "rate limit" in err_msg or "413" in err_msg or "too large" in err_msg:
-                    print(f"Key index {self.current_idx} (ends with ...{key[-6:]}) hit limit/error: {e}")
-                    self.current_idx = (self.current_idx + 1) % len(self.keys)
-                    print(f"Switching to next key index {self.current_idx}...")
-                    time.sleep(1)
-                else:
-                    raise e
-        
-        raise last_error
+            
+        except Exception as e:
+            print(f"CascadeFlow execution failed: {e}")
+            raise e
 
 # Singleton instance
 groq_rotator = GroqKeyRotator()

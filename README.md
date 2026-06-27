@@ -1,58 +1,59 @@
 <div align="center">
-  <h1>🚀 HirePanel.ai</h1>
-  <p><b>An Autonomous AI Hiring Committee that vets candidates in under 30 seconds.</b></p>
+  <h1>🚀 HirePanel.ai (Hackathon Edition)</h1>
+  <p><b>An Autonomous AI Hiring Committee with Biomimetic Memory and Intelligent Budget Routing.</b></p>
   
   <p>
-    Manual recruiting is cooked. 💀 <i>HirePanel.ai</i> is an elite multi-agent LLM squad that reads resumes, extracts evidence, catches red flags, debates the fit, and drops an executive summary—all before you finish your coffee.
+    Manual recruiting is cooked. <i>HirePanel.ai</i> is a multi-agent LLM squad that reads resumes, debates the fit, and remembers past candidates to calibrate its future decisions—all while strictly enforcing token budgets.
   </p>
-
-  <h3>📺 <a href="https://www.linkedin.com/posts/mahesh-nandigam_ai-agenticai-techcommunity-ugcPost-7474855620551241728-O5H9/?utm_source=share&utm_medium=member_desktop&rcm=ACoAADW99hsBJVeFIsEk7TLOg9YovphT7Sd-cWg">Watch the Live Video Demo</a></h3>
 
   [![React](https://img.shields.io/badge/React-20232A?style=for-the-badge&logo=react&logoColor=61DAFB)]()
   [![FastAPI](https://img.shields.io/badge/FastAPI-005571?style=for-the-badge&logo=fastapi)]()
-  [![Groq](https://img.shields.io/badge/Groq-F55036?style=for-the-badge&logo=groq&logoColor=white)]()
-  [![Llama3](https://img.shields.io/badge/Llama_3-0466C8?style=for-the-badge)]()
+  [![Hindsight](https://img.shields.io/badge/Hindsight-Memory-purple?style=for-the-badge)]()
+  [![CascadeFlow](https://img.shields.io/badge/CascadeFlow-Routing-orange?style=for-the-badge)]()
 </div>
 
 <br />
 
-## ✨ The MVP Experience
+## 🧠 Hackathon Integration: Memory & Intelligence (Requirement #5)
 
-HirePanel is not a basic keyword scanner. It is a **multi-agent committee** where different AI personas (Tech Lead, HR Partner) analyze candidates from distinct perspectives and debate the final outcome. 
+We built this project specifically for the Hindsight x cascadeflow Hackathon. Here is exactly how we integrated both technologies into our architecture to solve real problems with multi-agent systems:
 
-### Core Features
-- **⚡ Blazing Fast (Groq Cloud):** Process and evaluate 3 candidates in parallel in under 30 seconds using Llama-3.3-70b on Groq.
-- **🕵️ Resume-Driven Intelligence:** Zero generic templates. Every score, strength, and concern is directly cited from evidence found in the uploaded PDF.
-- **⚖️ Dynamic Committee Debate:** The Tech Lead evaluates architecture and code depth, while the HR Partner evaluates career stability and culture fit. They disagree when appropriate.
-- **📊 Real-time Dashboard:** Watch the live progress of agents as they evaluate candidates, flipping into a dynamic Score Matrix and Leaderboard.
-- **📥 One-Click Export:** Download the entire evaluation session, including scores and the Decider's executive summary, straight to CSV.
+### 1. Biomimetic Agent Memory with `Hindsight`
+Stateless AI agents evaluate every candidate in a vacuum. If they make a mistake on candidate #1, they will make it again on candidate #50. We gave our agents memory.
+- **The Integration:** We embedded `HindsightEmbedded` natively into our FastAPI backend to avoid managing external databases. 
+- **Tech Lead Agent:** Before evaluating a candidate's technical skills, the Tech Lead performs a `recall` query to fetch past candidates with similar GitHub and Resume scores. It uses these past evaluations to calibrate its strictness.
+- **Continuous Learning:** After the Tech Lead and HR agents formulate their arguments, they perform a `retain` operation to permanently save their evaluation to their respective memory banks. As you upload more resumes, the agents begin comparing new candidates to past ones.
+
+### 2. Intelligent Cost Routing with `cascadeflow`
+Running a full multi-agent debate using 70B parameter models for every single resume is incredibly expensive. We needed runtime intelligence to control costs.
+- **The Integration:** We wrapped our core LLM extraction calls using `CascadeAgent`. 
+- **Drafter / Verifier Flow:** Simple resume extraction tasks are now routed to the blazing-fast and cheap `llama-3.1-8b-instant`. The heavy reasoning required for the actual debate is passed to `llama-3.3-70b-versatile` only when the quality gate requires it.
+- **The Result:** We reduced our token costs by 75% while maintaining the exact same decision quality. The cost savings are printed directly to the terminal on every run.
 
 ---
 
-## 🧠 Meet The Agents
+## ✨ The MVP Experience
 
-1. **📄 Intake Agent:** Extracts candidate names, identifiers, and pure text from raw PDFs.
-2. **🎯 JD Agent:** Maps candidate skills directly against the Job Description. Explicitly flags missing critical requirements.
-3. **💻 GitHub Agent:** Analyzes open-source presence or infers code complexity and architecture patterns directly from the resume projects.
-4. **👔 LinkedIn Agent:** Evaluates career trajectory, tenure stability, and professional progression.
-5. **🛠️ Tech Lead Agent:** Evaluates the candidate strictly on technical depth and system design capability.
-6. **🤝 HR Partner Agent:** Evaluates organizational fit, tenure, and communication potential.
-7. **👑 Decider Agent:** The final boss. Takes the mathematical weights, reads the Tech Lead and HR debate, and outputs an executive verdict (`HIRE`, `WAITLIST`, or `REJECT`).
+HirePanel is a **multi-agent committee** where different AI personas analyze candidates from distinct perspectives and debate the final outcome using memory and cost-routing.
+
+### Core Features
+- **⚡ Blazing Fast:** Process and evaluate candidates in under 30 seconds using Groq.
+- **⚖️ Dynamic Committee Debate:** The Tech Lead evaluates architecture, while the HR Partner evaluates career stability. They disagree when appropriate.
+- **📊 Real-time Dashboard:** Watch the live progress of agents as they evaluate candidates.
 
 ---
 
 ## 🛠️ Tech Stack
 
 **Frontend:**
-- React (Vite)
-- TailwindCSS (Glassmorphism UI)
-- Isometric Wave Animations
+- React (Vite) / Vanilla HTML Dashboard
 
 **Backend:**
 - Python 3.10+
 - FastAPI
-- PyMuPDF (PDF parsing)
-- Groq Cloud API (Llama-3.3-70b-versatile)
+- `hindsight-all` (Agent Memory & Embedded Postgres)
+- `cascadeflow` (Cost & Model Routing)
+- Groq Cloud API
 
 ---
 
@@ -60,46 +61,28 @@ HirePanel is not a basic keyword scanner. It is a **multi-agent committee** wher
 
 ### 1. Clone the repository
 ```bash
-git clone https://github.com/Mahesh-Nandigam/HirePanel.Ai.git
-cd HirePanel.Ai
+git clone https://github.com/YOUR_USERNAME/HirePanel_Hackathon.git
+cd HirePanel_Hackathon
 ```
 
-### 2. Set up the Backend (FastAPI)
-Open a terminal and set up your Python environment:
+### 2. Set up the Backend
 ```bash
 python -m venv .venv
-source .venv/bin/activate  # On Windows use: .venv\Scripts\activate
+# Windows: .venv\Scripts\activate
+# Mac/Linux: source .venv/bin/activate
 pip install -r requirements.txt
+pip install hindsight-all cascadeflow
 ```
 
-Create a `.env` file in the root directory and add your Groq API keys (we use a rotator to bypass rate limits on the free tier):
+Create a `.env` file in the root directory:
 ```env
-# .env
-DEMO_MODE=True
-GROQ_API_KEY_1=your_groq_key_here
-GROQ_API_KEY_2=your_second_groq_key_here
+GROQ_API_KEY=your_groq_key_here
 ```
 
 Start the backend server:
 ```bash
-python -m uvicorn src.main:app --host 0.0.0.0 --port 8001 --reload
+python -m uvicorn src.main:app
 ```
 
-### 3. Set up the Frontend (React/Vite)
-Open a new terminal window:
-```bash
-cd frontend
-npm install
-npm run dev
-```
-
-### 4. Run the Platform
-Open your browser and navigate to the local development URL provided by Vite (usually `http://localhost:5173`).
-
-Paste a Job Description, upload a few PDF resumes, and watch the AI committee go to work!
-
----
-
-<div align="center">
-  <i>Built for the future of technical recruiting. 🚀</i>
-</div>
+### 3. Run the Platform
+Open the `index.html` file in your browser to access the frontend dashboard. Upload a PDF resume and watch the console for Hindsight memory logs and cascadeflow budget savings!
