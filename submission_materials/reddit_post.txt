@@ -1,7 +1,13 @@
 **Title:** If you are building multi-agent systems without stateful memory, you are basically building highly intelligent goldfishes. Here is how I fixed my architecture (and dropped API costs by 75%).
 
 **Body:**
-Let’s have a serious talk about the multi-agent systems everyone is building right now. 
+Please do not read the breakdown below if you are a beginner or if you don't actually understand backend architecture. 
+
+And please do not assume this is just another cheap hook to grab your attention. It is genuinely just to save your time. 
+
+This post touches the top 0.1% layer of how to actually build stateful AI systems. Sorry to disappoint you if you were looking for a basic "wrapper" tutorial, but bookmark this post and come back when you are ready.
+
+For the backend engineers still reading: Let’s have a serious talk about the multi-agent systems everyone is building right now. 
 
 I spent the last few weeks watching my AI hiring pipeline (a "Tech Lead" agent and an "HR" agent debating resumes) evaluate candidates in a total vacuum. It was incredibly frustrating. If the Tech Lead agent made a hilariously bad call on candidate #1, it would make the exact same bad call on candidate #50. 
 
@@ -23,7 +29,7 @@ Token costs dropped by 75% overnight.
 
 If you are a system architect, read this before you deploy another stateless agent to production. Once you see an agent reference its own past experience to make a better decision today, stateless agents will feel completely obsolete to you.
 
-I wrote a massive, in-depth technical breakdown of the architecture touching the top 0.1% layer of how this actually works under the hood here: [Link to your published article]
+I wrote a massive, in-depth technical breakdown of the architecture here: [Link to your published article]
 
 And yes, I open-sourced the whole thing on GitHub so you can clone it and steal the routing logic: [Link to your GitHub repo]
 
