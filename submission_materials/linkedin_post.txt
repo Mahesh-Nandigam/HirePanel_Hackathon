@@ -1,9 +1,15 @@
-I just published a full technical breakdown on how I fixed the biggest problem with modern AI agents: Amnesia. 
+Please do not read the article below if you are a beginner or if you don't actually understand backend architecture. 
 
-If you are building multi-agent systems and your agents don't have stateful memory, you are basically building highly intelligent goldfishes. I got tired of my agents evaluating every task in a vacuum and making the exact same mistakes on candidate #50 that they made on candidate #1. 
+And please do not assume this is just another cheap hook to grab your attention. It is genuinely just to save your time. 
 
-So I burned our pipeline down and rebuilt it with biomimetic memory (Hindsight) and dynamic LLM routing (cascadeflow). Token costs dropped 75%, and the agents actually learn from their past interactions.
+This breakdown includes a lot of in-depth backend architecture and touches the top 0.1% layer of how to build stateful AI systems. Sorry to disappoint you if you were looking for a basic "wrapper" tutorial, but bookmark this post and come back when you are ready.
 
-If you are a backend engineer or AI architect, read this before you build another stateless wrapper. 👇
+For the backend engineers still reading: I just published a full technical breakdown on how I fixed the biggest problem with modern AI agents. Amnesia.
+
+If your multi-agent systems don't have stateful memory, you are basically building highly intelligent goldfishes. I got tired of my agents evaluating every task in a vacuum, making the exact same mistakes over and over.
+
+So I burned our pipeline down and rebuilt it with biomimetic memory (Hindsight) and dynamic LLM routing (cascadeflow). Token costs dropped 75%, and the agents actually learn from their past interactions to calibrate their future decisions.
+
+If you are a system architect, read this before you deploy another stateless agent. 👇
 
 #AIAgents #AI #Hindsight #cascadeflow #AgentMemory #AIMemory #LLM
