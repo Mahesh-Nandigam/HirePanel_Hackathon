@@ -1,16 +1,19 @@
 Are your AI agents stuck in Groundhog Day?
-Every time you feed them a new task, they completely forget what they learned from the last one.
+Every time you give them a new task, they completely forget what they learned from the last one.
 
-I got tired of stateless agents making the same mistakes over and over, so I rebuilt our AI hiring committee to actually remember its past decisions. 
+I got tired of stateless agents making the exact same mistakes over and over, so I rebuilt our AI hiring committee to actually remember things. 
 
-Here is how we added biomimetic memory and budget routing to our AI recruiters:
+Here is what I learned building a stateful multi-agent system:
 
-1. Memory beats prompting: You can prompt an agent to be "skeptical", but showing it a past hiring mistake via Hindsight recall forces a much more authentic behavior change.
-2. The Before/After: Before, our Tech Lead agent evaluated every resume in a vacuum. After embedding Hindsight, it calibrates: "Similar to our last candidate with a high resume score but weak GitHub presence, this person lacks proven production code."
-3. Dynamic Budgeting: Running multiple 70B models for every resume is a great way to go broke.
-4. Intelligent Routing: We wrapped our calls in cascadeflow to route simpler extraction tasks to an 8B model, reserving the 70B model only when the cheaper one fails verification. Our LLM costs dropped by 75%.
-5. The takeaway: Building stateless wrappers around LLMs is table stakes now. Giving agents their own isolated memory banks makes them feel like colleagues rather than calculators.
+1. Memory beats prompt engineering. 
+Telling an agent to "be strict" in a system prompt works for one turn. But when you embed Hindsight memory, the agent actually recalls past candidate evaluations. It calibrates its own strictness based on historical data. Authentic behavior change > prompt hacking.
 
-We built this entirely in Python with FastAPI. The combination of Hindsight for memory and cascadeflow for runtime intelligence is a game changer for multi-agent systems.
+2. You don't need 70B for everything. 
+Running a full debate between a Tech Lead agent and an HR agent on Llama-3.3-70B is expensive. I used cascadeflow to intercept the LLM calls at runtime. It routes simple resume parsing to the cheap 8B model and saves the 70B heavy-lifting strictly for the debate. Token costs dropped by 75%.
 
-#AIAgents #AI #Hindsight #cascadeflow #AgentMemory #LLM
+3. Stateful agents are the future.
+Once you see an agent reference a past interaction to make a better decision today, stateless agents feel completely broken.
+
+I wrote a full breakdown on how I built this (link in the comments below!). Has anyone else been messing around with agent memory lately?
+
+#AIAgents #AI #Hindsight #cascadeflow #AgentMemory #AIMemory #LLM

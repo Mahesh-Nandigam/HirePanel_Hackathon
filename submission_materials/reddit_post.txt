@@ -1,0 +1,16 @@
+**Title:** I got tired of my AI agents having amnesia, so I built a Hiring Committee that actually remembers past candidates (using Hindsight & cascadeflow)
+
+**Body:**
+Most multi-agent systems evaluate every task in a vacuum. If they make a mistake on candidate #1, they will make the exact same mistake on candidate #50. 
+
+I built an AI hiring panel in Python (FastAPI) where a "Tech Lead" agent and an "HR" agent debate a candidate's resume. But instead of just tweaking the system prompts to make them "strict", I embedded `Hindsight` (a biomimetic agent memory layer) directly into the backend. 
+
+Now, before the Tech Lead evaluates someone, it recalls how it evaluated past candidates with similar GitHub/Resume scores, and calibrates its decision: *"Similar to our last candidate with a high resume score but weak GitHub presence, this person lacks proven production code."*
+
+To keep costs from exploding, I wrapped the LLM calls in `cascadeflow`, which routes simple extraction tasks to Llama-3.1-8B and reserves Llama-3.3-70B purely for the debate reasoning. It dropped token costs by 75%.
+
+I wrote a full technical breakdown of the architecture here: [Link to your published article]
+
+And the code is entirely open source on GitHub: [Link to your GitHub repo]
+
+Would love to hear how you guys handle statefulness in multi-agent pipelines! Are you guys using vector databases or doing something custom?
