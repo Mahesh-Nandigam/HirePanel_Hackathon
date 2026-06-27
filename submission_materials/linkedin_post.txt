@@ -12,8 +12,8 @@ I embedded a biomimetic memory layer (Hindsight) directly into the backend. Now,
 
 And to stop my Llama-3.3-70B API bill from bankrupting me, I wrapped the pipeline in a dynamic runtime router (cascadeflow) that intercepted the calls and dropped my token costs by 75% overnight.
 
-If you are a backend engineer or system architect building AI right now, I wrote a massive technical breakdown of the architecture. I also open-sourced the entire GitHub repo so you can steal the logic. Link is in the comments! 👇
-
 Once you see an agent reference its own past experience to make a better decision today, stateless agents will feel completely broken to you. 
+
+If you are a backend engineer or system architect building AI right now, I wrote a massive technical breakdown of the architecture. I also open-sourced the entire GitHub repo so you can steal the logic. Link is in the comments! 👇
 
 #AIAgents #AI #Hindsight #cascadeflow #AgentMemory #AIMemory #LLM
