@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+# hindsight-update-check — check for new hindsight-skills versions
+#
+# Output protocol (stdout):
+#   JUST_UPGRADED <old> <new>     — a recent upgrade completed; show What's New
+#   UPGRADE_AVAILABLE <old> <new> — a newer version exists
+#   (nothing)                     — up to date, snoozed, or checks disabled
+#
+# Env overrides (for testing):
+#   HINDSIGHT_SKILLS_DIR       — path to the skills repo (default: auto-detect)
+#   HINDSIGHT_SKILLS_REMOTE_URL — URL to fetch remote VERSION (default: GitHub raw)
+#   HINDSIGHT_SKILLS_STATE_DIR  — path to state directory (default: ~/.hindsight-skills)
+set -euo pipefail
+
+# ─── Resolve paths ───────────────────────────────────────────
+
+SCRIPT_DIR="$(cd "$(dirname "$0")" && pwd)"
+SKILL_DIR="${HINDSIGHT_SKILLS_DIR:-$(cd "$SCRIPT_DIR/.." && pwd)}"
+STATE_DIR="${HINDSIGHT_SKILLS_STATE_DIR:-$HOME/.hindsight-skills}"
+REMOTE_URL="${HINDSIGHT_SKILLS_REMOTE_URL:-https://raw.githubusercontent.com/vectorize-io/hindsight-skills/main/VERSION}"
+
+CONFIG_BIN="$SCRIPT_DIR/hindsight-config"
+CACHE_FILE="$STATE_DIR/last-update-check"
+SNOOZE_FILE="$STATE_DIR/update-snoozed"
+UPGRADED_FILE="$STATE_DIR/just-upgraded-from"
+VERSION_FILE="$SKILL_DIR/VERSION"
+
+# Cache TTLs in seconds
+CACHE_TTL_UPTODATE=3600     # 60 min when up to date
+CACHE_TTL_UPGRADE=43200     # 720 min when upgrade available
+SNOOZE_DURATION=86400       # 24 hours
+
+mkdir -p "$STATE_DIR"
+
+# ─── Helpers ─────────────────────────────────────────────────
+
+now_epoch() {
+  date +%s
+}
+
+version_gt() {
+  # Returns 0 (true) if $1 > $2 using sort -V
+  [ "$1" != "$2" ] && [ "$(printf '%s\n%s\n' "$1" "$2" | sort -V | tail -1)" = "$1" ]
+}
+
+# ─── Step 1: Check if update checks are enabled ─────────────
+
+if [ -x "$CONFIG_BIN" ]; then
+  update_check=$("$CONFIG_BIN" get update_check 2>/dev/null || echo "true")
+else
+  update_check="true"
+fi
+
+if [ "$update_check" = "false" ]; then
+  exit 0
+fi
+
+# ─── Step 2: Read local version ─────────────────────────────
+
+if [ ! -f "$VERSION_FILE" ]; then
+  exit 0
+fi
+
+local_version=$(tr -d '[:space:]' < "$VERSION_FILE")
+if [ -z "$local_version" ]; then
+  exit 0
+fi
+
+# ─── Step 3: Check just-upgraded marker ─────────────────────
+
+if [ -f "$UPGRADED_FILE" ]; then
+  old_version=$(tr -d '[:space:]' < "$UPGRADED_FILE")
+  rm -f "$UPGRADED_FILE"
+  if [ -n "$old_version" ]; then
+    echo "JUST_UPGRADED $old_version $local_version"
+    exit 0
+  fi
+fi
+
+# ─── Step 4: Check cache freshness ──────────────────────────
+
+if [ -f "$CACHE_FILE" ]; then
+  cached_status=$(head -1 "$CACHE_FILE" 2>/dev/null || echo "")
+  cached_time=$(sed -n '2p' "$CACHE_FILE" 2>/dev/null || echo "0")
+  cached_remote=$(sed -n '3p' "$CACHE_FILE" 2>/dev/null || echo "")
+  now=$(now_epoch)
+
+  if [ -n "$cached_time" ] && [ -n "$cached_status" ]; then
+    age=$((now - cached_time))
+
+    if [ "$cached_status" = "up-to-date" ] && [ $age -lt $CACHE_TTL_UPTODATE ]; then
+      # Still fresh, nothing to report
+      exit 0
+    fi
+
+    if [ "$cached_status" = "upgrade-available" ] && [ $age -lt $CACHE_TTL_UPGRADE ]; then
+      # Cache still valid — but check snooze before reporting
+      if [ -f "$SNOOZE_FILE" ]; then
+        snooze_version=$(awk '{print $1}' "$SNOOZE_FILE" 2>/dev/null || echo "")
+        snooze_time=$(awk '{print $2}' "$SNOOZE_FILE" 2>/dev/null || echo "0")
+        if [ "$snooze_version" = "$cached_remote" ] && [ $((now - snooze_time)) -lt $SNOOZE_DURATION ]; then
+          exit 0
+        fi
+      fi
+      echo "UPGRADE_AVAILABLE $local_version $cached_remote"
+      exit 0
+    fi
+  fi
+fi
+
+# ─── Step 5: Fetch remote version ───────────────────────────
+
+remote_version=""
+if command -v curl >/dev/null 2>&1; then
+  remote_version=$(curl -fsSL --max-time 5 "$REMOTE_URL" 2>/dev/null | tr -d '[:space:]') || true
+elif command -v wget >/dev/null 2>&1; then
+  remote_version=$(wget -qO- --timeout=5 "$REMOTE_URL" 2>/dev/null | tr -d '[:space:]') || true
+fi
+
+# ─── Step 6: Validate response ──────────────────────────────
+
+if [ -z "$remote_version" ]; then
+  exit 0
+fi
+
+# Must look like a semver (digits and dots, optionally with pre-release suffix)
+if ! echo "$remote_version" | grep -qE '^[0-9]+\.[0-9]+\.[0-9]+'; then
+  exit 0
+fi
+
+# ─── Step 7: Compare and output ─────────────────────────────
+
+now=$(now_epoch)
+
+if version_gt "$remote_version" "$local_version"; then
+  # Write cache
+  printf 'upgrade-available\n%s\n%s\n' "$now" "$remote_version" > "$CACHE_FILE"
+
+  # Check snooze
+  if [ -f "$SNOOZE_FILE" ]; then
+    snooze_version=$(awk '{print $1}' "$SNOOZE_FILE" 2>/dev/null || echo "")
+    snooze_time=$(awk '{print $2}' "$SNOOZE_FILE" 2>/dev/null || echo "0")
+    if [ "$snooze_version" = "$remote_version" ] && [ $((now - snooze_time)) -lt $SNOOZE_DURATION ]; then
+      exit 0
+    fi
+    # New version or snooze expired — remove stale snooze
+    rm -f "$SNOOZE_FILE"
+  fi
+
+  echo "UPGRADE_AVAILABLE $local_version $remote_version"
+else
+  # Up to date
+  printf 'up-to-date\n%s\n%s\n' "$now" "$remote_version" > "$CACHE_FILE"
+fi

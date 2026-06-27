@@ -1,0 +1,80 @@
+#!/usr/bin/env bash
+# hindsight-config — read/write ~/.hindsight-skills/config.yaml
+# Usage: hindsight-config get <key> | set <key> <value> | list
+set -euo pipefail
+
+STATE_DIR="${HINDSIGHT_SKILLS_STATE_DIR:-$HOME/.hindsight-skills}"
+CONFIG_FILE="$STATE_DIR/config.yaml"
+
+# Defaults (bash 3.x compatible — no associative arrays)
+get_default() {
+  case "$1" in
+    auto_upgrade)  echo "false" ;;
+    update_check)  echo "true" ;;
+    *)             echo "" ;;
+  esac
+}
+
+ensure_config() {
+  if [ ! -f "$CONFIG_FILE" ]; then
+    mkdir -p "$STATE_DIR"
+    cat > "$CONFIG_FILE" <<'EOF'
+auto_upgrade: false
+update_check: true
+EOF
+  fi
+}
+
+# Read a value from the config file (simple YAML: "key: value" per line)
+read_key() {
+  local key="$1"
+  ensure_config
+  local value
+  value=$(grep "^${key}:" "$CONFIG_FILE" 2>/dev/null | head -1 | sed 's/^[^:]*:[[:space:]]*//' || true)
+  if [ -z "$value" ]; then
+    get_default "$key"
+  else
+    echo "$value"
+  fi
+}
+
+# Write a value to the config file
+write_key() {
+  local key="$1"
+  local value="$2"
+  ensure_config
+  if grep -q "^${key}:" "$CONFIG_FILE" 2>/dev/null; then
+    # Replace existing line — portable sed in-place
+    local tmp="$CONFIG_FILE.tmp"
+    sed "s/^${key}:.*/${key}: ${value}/" "$CONFIG_FILE" > "$tmp"
+    mv "$tmp" "$CONFIG_FILE"
+  else
+    echo "${key}: ${value}" >> "$CONFIG_FILE"
+  fi
+}
+
+# List all config values
+list_config() {
+  ensure_config
+  cat "$CONFIG_FILE"
+}
+
+# ─── Main ────────────────────────────────────────────────────
+
+case "${1:-}" in
+  get)
+    [ -z "${2:-}" ] && echo "Usage: hindsight-config get <key>" >&2 && exit 1
+    read_key "$2"
+    ;;
+  set)
+    [ -z "${2:-}" ] || [ -z "${3:-}" ] && echo "Usage: hindsight-config set <key> <value>" >&2 && exit 1
+    write_key "$2" "$3"
+    ;;
+  list)
+    list_config
+    ;;
+  *)
+    echo "Usage: hindsight-config <get|set|list> [key] [value]" >&2
+    exit 1
+    ;;
+esac
